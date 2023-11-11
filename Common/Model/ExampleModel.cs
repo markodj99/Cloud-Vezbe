@@ -2,7 +2,6 @@
 
 namespace Common.Model
 {
-    [Serializable]
     [DataContract]
     public class ExampleModel
     {
