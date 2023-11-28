@@ -11,15 +11,14 @@ namespace Common.Model
     public class Book
     {
         [DataMember]
-        public string FirstName { get; set; }
-
+        public long Id { get; set; }
         [DataMember]
-        public string LastName { get; set; }
-
+        public string Title { get; set; } = null!;
         [DataMember]
-        public string BookName { get; set; }
-
+        public string Author { get; set; } = null!;
         [DataMember]
         public int Quantity { get; set; }
+        [DataMember]
+        public double Price { get; set; }
     }
 }

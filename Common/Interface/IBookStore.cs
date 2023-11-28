@@ -8,6 +8,10 @@ namespace Common.Interface
     public interface IBookStore : IService
     {
         [OperationContract]
-        Task<ReturnCode> CheckBookQuantityAsync(ExampleModel model);
+        Task<double> CheckBookQuantityAsync(ExampleModel model);
+        [OperationContract]
+        Task DrawBooks(ExampleModel model);
+        [OperationContract]
+        Task GetPerviousStateAsync();
     }
 }

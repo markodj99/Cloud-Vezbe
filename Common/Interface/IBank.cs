@@ -8,6 +8,12 @@ namespace Common.Interface
     public interface IBank : IService
     {
         [OperationContract]
-        Task<ReturnCode> CheckUserCreditAsync(ExampleModel model);
+        Task<bool> CheckUserCreditAsync(ExampleModel model, double price);
+
+        [OperationContract]
+        Task DrawMoneyAsync(double amount);
+
+        [OperationContract]
+        Task GetPerviousStateAsync();
     }
 }

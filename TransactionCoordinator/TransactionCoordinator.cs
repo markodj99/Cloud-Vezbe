@@ -7,28 +7,53 @@ using Microsoft.ServiceFabric.Services.Remoting.Client;
 using Microsoft.ServiceFabric.Services.Remoting.Runtime;
 using Microsoft.ServiceFabric.Services.Runtime;
 using System.Fabric;
+using System.ServiceModel;
 
 namespace TransactionCoordinator
 {
     /// <summary>
     /// An instance of this class is created for each service replica by the Service Fabric runtime.
     /// </summary>
-    internal sealed class TransactionCoordinator : StatefulService, ICoordinator
+    internal sealed class TransactionCoordinator : StatefulService, ITransactionCoordinator
     {
         public TransactionCoordinator(StatefulServiceContext context) : base(context) { }
 
-        public async Task<ReturnCode> SendBookAsync(ExampleModel model)
+        public async Task<bool> PrepareAsync(ExampleModel model)
         {
-            if (model.FirstName.Equals("SRX")) return ReturnCode.TransactionCoordinatorError; // cisto da nekad vrati ovaj kod
+            var bookStoreProxy = ServiceProxy.Create<IBookStore>(new Uri("fabric:/Cloud/BookStore"), new ServicePartitionKey(1));
+            var bankProxy = ServiceProxy.Create<IBank>(new Uri("fabric:/Cloud/Bank"), new ServicePartitionKey(1));
 
-            var bookStoreProxy = ServiceProxy.Create<IBookStore>(new Uri("fabric:/Cloud/BookStore"),
-                new ServicePartitionKey(1));
-            var bookStoreResult = await bookStoreProxy.CheckBookQuantityAsync(model);
-            if(bookStoreResult ==  ReturnCode.BookStoreError) return bookStoreResult; // nema knjiga na stanju
+            var price = await bookStoreProxy.CheckBookQuantityAsync(model);
 
-            var bankProxy = ServiceProxy.Create<IBank>(new Uri("fabric:/Cloud/Bank"),
-                new ServicePartitionKey(1));
-            return await bankProxy.CheckUserCreditAsync(model); // svejedno koji kod vrati
+            if (await bookStoreProxy.CheckBookQuantityAsync(model) > 0)
+            {
+                return await bankProxy.CheckUserCreditAsync(model, price);
+            }
+            return false;
+        }
+
+        public async Task<ReturnCode> CommitAsync(ExampleModel model)
+        {
+            var bookStoreProxy = ServiceProxy.Create<IBookStore>(new Uri("fabric:/Cloud/BookStore"), new ServicePartitionKey(1));
+            var bankProxy = ServiceProxy.Create<IBank>(new Uri("fabric:/Cloud/Bank"), new ServicePartitionKey(1));
+
+            var price = await bookStoreProxy.CheckBookQuantityAsync(model);
+
+            await bookStoreProxy.DrawBooks(model);
+            await bankProxy.DrawMoneyAsync(price);
+
+            return ReturnCode.Success;
+        }
+
+        public async Task<ReturnCode> RollbackAsync(ExampleModel model)
+        {
+            var bookStoreProxy = ServiceProxy.Create<IBookStore>(new Uri("fabric:/Cloud/BookStore"), new ServicePartitionKey(1));
+            var bankProxy = ServiceProxy.Create<IBank>(new Uri("fabric:/Cloud/Bank"), new ServicePartitionKey(1));
+
+            await bookStoreProxy.GetPerviousStateAsync();
+            await bankProxy.GetPerviousStateAsync();
+
+            return ReturnCode.TransactionCoordinatorError;
         }
 
         /// <summary>

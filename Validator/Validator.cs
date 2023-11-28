@@ -21,9 +21,20 @@ namespace Validator
             if (model == null) return ReturnCode.ValidatorError;
 
             if (string.IsNullOrEmpty(model.FirstName) || string.IsNullOrEmpty(model.LastName) || string.IsNullOrEmpty(model.CardNumber)
-                                                      || string.IsNullOrEmpty(model.BookName) || model.Quantity == 0) return ReturnCode.ValidatorError;
+                                                      || string.IsNullOrEmpty(model.BookName) || model.Quantity <= 0) return ReturnCode.ValidatorError;
 
-            return await ServiceProxy.Create<ICoordinator>(new Uri("fabric:/Cloud/TransactionCoordinator"), new ServicePartitionKey(1)).SendBookAsync(model);
+            var proxy = ServiceProxy.Create<ITransactionCoordinator>(new Uri("fabric:/Cloud/TransactionCoordinator"), new ServicePartitionKey(1));
+
+            try
+            {
+                if (await proxy.PrepareAsync(model)) return await proxy.CommitAsync(model); 
+                return ReturnCode.ValidatorError;
+            }
+            catch (Exception)
+            {
+                await proxy.RollbackAsync(model);
+                return ReturnCode.ValidatorError;
+            }
         }
 
         /// <summary>
